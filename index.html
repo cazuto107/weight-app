@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>体重管理アプリ</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#faf8f4" id="meta-theme-color">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="体重">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300..700;1,300..600&family=Lora:ital,wght@0,400..600&family=Noto+Serif+JP:wght@300;400;500;600&family=Zen+Old+Mincho:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@300;400;500&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px;
+  --radius-md: 10px;
+}
+.theme-hakuji {
+  --color-mat: #efebe3; --color-bg: #faf8f4; --color-surface: #fffefb; --color-plate: #f4f1ea;
+  --color-ink: #1c1c1a; --color-accent: #2f4b6e; --color-accent-700: #21374f;
+  --color-divider: rgba(28,28,26,.14);
+  --font-heading: "Zen Old Mincho","Noto Serif JP",serif; --font-body: "Noto Serif JP",serif;
+}
+.theme-koten {
+  --color-mat: #e8e6e1; --color-bg: #f3f2f2; --color-surface: #fbfaf8; --color-plate: #efeee9;
+  --color-ink: #201f1d; --color-accent: #b68235; --color-accent-700: #7d5411;
+  --color-divider: rgba(32,31,29,.16);
+  --font-heading: "Cormorant Garamond","Noto Serif JP",serif; --font-body: "Lora","Noto Serif JP",serif;
+}
+.theme-keiki {
+  --color-mat: #0a0d10; --color-bg: #14191d; --color-surface: #1d242a; --color-plate: #10151a;
+  --color-ink: #eceff1; --color-accent: #8fc7b0; --color-accent-700: #b6dccb;
+  --color-divider: rgba(236,239,241,.18);
+  --font-heading: "Zen Kaku Gothic New","Noto Sans JP",sans-serif; --font-body: "Noto Sans JP",sans-serif;
+}
+* { box-sizing: border-box; }
+/* .sheet などが display を指定するため、hidden属性を確実に効かせる */
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--color-mat); font-family: var(--font-body); color: var(--color-ink); }
+button, input { font-family: inherit; color: inherit; }
+a { color: var(--color-accent-700); }
+
+#shell { height: 100vh; height: 100dvh; display: flex; justify-content: center; align-items: flex-start; padding: 0; }
+/* タブバーを常に画面内に留めるため、#app の高さを画面に固定し、
+   スクロールは中のタブパネル（.scr）だけで起こるようにする */
+#app { width: 100%; max-width: 480px; height: 100%; background: var(--color-bg); color: var(--color-ink);
+  display: flex; flex-direction: column; position: relative; overflow: hidden; }
+
+.jp { font-family: var(--font-heading); }
+.tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.kick { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: color-mix(in srgb, var(--color-ink) 50%, transparent); }
+.kickg { font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--color-accent-700); }
+.h2 { font-family: var(--font-heading); font-size: 19px; font-weight: 500; margin: 0; }
+.hr { border: 0; border-top: 1px solid var(--color-divider); margin: var(--space-4) 0; }
+.muted { color: color-mix(in srgb, var(--color-ink) 60%, transparent); }
+.empty { font-size: 13px; color: color-mix(in srgb, var(--color-ink) 55%, transparent); padding: var(--space-4) 0; text-align: center; }
+
+/* ホーム画面から起動したときにノッチ・ホームバーへ潜り込まないよう safe-area を足す */
+.scr { padding: calc(20px + env(safe-area-inset-top)) var(--space-4) var(--space-6); height: 100%; overflow-y: auto; }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); padding: 10px 0; border-bottom: 1px solid var(--color-divider); }
+.tb { width: 100%; font-size: 13.5px; border-collapse: collapse; }
+.tb th { text-align: left; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: color-mix(in srgb, var(--color-ink) 55%, transparent); padding: 6px 4px; border-bottom: 1px solid var(--color-divider); font-weight: 400; }
+.tb td { padding: 8px 4px; border-bottom: 1px solid var(--color-divider); font-variant-numeric: tabular-nums; }
+
+.btn { display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid transparent; padding: 10px 16px; font-size: 14px; cursor: pointer; }
+.btn-primary { background: var(--color-ink); color: var(--color-bg); }
+.btn-secondary { background: transparent; border-color: var(--color-divider); color: var(--color-ink); }
+.btn-ghost { background: transparent; color: color-mix(in srgb, var(--color-ink) 65%, transparent); padding-left: 0; }
+
+.input { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--color-divider); color: var(--color-ink); padding: 4px 2px; caret-color: var(--color-accent); }
+.input:focus { outline: none; border-bottom-color: var(--color-accent); }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 11px; color: color-mix(in srgb, var(--color-ink) 55%, transparent); }
+
+.seg { display: inline-flex; border: 1px solid var(--color-divider); border-radius: 999px; overflow: hidden; }
+.seg-opt { padding: 6px 14px; background: transparent; border: 0; color: inherit; font-family: inherit; font-size: inherit; cursor: pointer; }
+.seg-opt.active { background: var(--color-ink); color: var(--color-bg); }
+
+.dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid; display: inline-block; box-sizing: border-box; flex-shrink: 0; }
+
+.card { border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: var(--space-3); cursor: pointer; }
+.card:hover { background: color-mix(in srgb, var(--color-ink) 4%, transparent); }
+
+.tabbar { border-top: 1px solid var(--color-divider); background: var(--color-bg);
+  padding: 9px var(--space-4) calc(14px + env(safe-area-inset-bottom));
+  display: grid; grid-template-columns: repeat(4,1fr); flex-shrink: 0; }
+.tab { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; padding: 2px 0; background: none; border: 0; }
+.tab .lbl { font-size: 11px; }
+.tab .rule { width: 16px; height: 1.5px; margin-top: 1px; }
+
+.sheet { position: absolute; inset: 0; background: var(--color-bg); display: flex; flex-direction: column; z-index: 20; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; padding: calc(20px + env(safe-area-inset-top)) var(--space-4) var(--space-3); border-bottom: 1px solid var(--color-divider); }
+.sheet-title { font-size: 16px; font-weight: 500; }
+.sheet-body { flex: 1; overflow-y: auto; padding: var(--space-4); }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.modal-overlay[hidden] { display: none; }
+.modal-box { background: var(--color-surface); border-radius: var(--radius-md); padding: 20px; max-width: 340px; width: 100%; }
+.modal-message { font-size: 14px; margin-bottom: 16px; line-height: 1.6; white-space: pre-wrap; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-divider); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="shell">
+<div id="app" class="theme-hakuji">
+
+  <div style="flex:1;overflow:hidden;position:relative">
+
+    <div class="tab-panel scr" id="tab-weight" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <div class="kickg tnum" id="w-today"></div>
+        <div class="kick" id="w-count"></div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:var(--space-3);margin-top:var(--space-3)">
+        <div class="jp tnum" id="w-current" style="font-size:72px;line-height:.82;font-weight:300">--</div>
+        <div style="padding-bottom:9px">
+          <div class="jp" style="font-size:17px">kg</div>
+          <div class="tnum" id="w-delta" style="font-size:12px;color:var(--color-accent-700);margin-top:3px"></div>
+        </div>
+      </div>
+      <hr class="hr">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr">
+        <div style="padding-right:var(--space-3)">
+          <div class="kick">目標体重</div>
+          <div class="jp tnum" id="w-goal" style="font-size:23px;font-weight:400;margin-top:2px">--</div>
+        </div>
+        <div style="padding:0 var(--space-3);border-left:1px solid var(--color-divider)">
+          <div class="kick">残り</div>
+          <div class="jp tnum" id="w-remain" style="font-size:23px;font-weight:400;margin-top:2px;color:var(--color-accent-700)">--</div>
+        </div>
+        <div style="padding-left:var(--space-3);border-left:1px solid var(--color-divider)">
+          <div class="kick">BMI</div>
+          <div class="jp tnum" id="w-bmi" style="font-size:23px;font-weight:400;margin-top:2px">--</div>
+        </div>
+      </div>
+      <div style="margin-top:var(--space-3)">
+        <div style="display:flex;justify-content:space-between;font-size:10.5px" class="muted tnum">
+          <span>開始 <span id="w-start"></span></span>
+          <span id="w-progress-text"></span>
+          <span>目標 <span id="w-goal2"></span></span>
+        </div>
+        <div style="height:1px;background:var(--color-divider);margin-top:7px;position:relative">
+          <div id="w-progress-bar" style="position:absolute;left:0;top:-1px;height:3px;background:var(--color-accent);width:0%"></div>
+        </div>
+      </div>
+      <p class="muted tnum" id="w-judge" style="font-size:12px;margin:var(--space-3) 0 0"></p>
+      <div style="margin-top:var(--space-4)">
+        <button class="btn btn-primary jp" style="width:100%;justify-content:center;font-size:15px;padding:12px" id="w-open-add">今日の体重を記す</button>
+      </div>
+      <hr class="hr">
+      <h2 class="h2">記録の履歴</h2>
+      <table class="tb" style="margin-top:var(--space-2)">
+        <thead><tr><th>日付</th><th style="text-align:right">体重</th><th style="text-align:right">BMI</th></tr></thead>
+        <tbody id="w-history"></tbody>
+      </table>
+      <p class="empty" id="w-history-empty" hidden>まだ記録がありません</p>
+    </div>
+
+    <div class="tab-panel scr" id="tab-meal" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <div class="kickg tnum" id="m-today"></div>
+        <div class="kick">目安との比較</div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:var(--space-3);margin-top:var(--space-3)">
+        <div class="jp tnum" id="m-eaten" style="font-size:60px;line-height:.85;font-weight:300">--</div>
+        <div style="padding-bottom:8px">
+          <div class="jp tnum muted" id="m-target" style="font-size:15px"></div>
+          <div class="tnum" id="m-left" style="font-size:12px;color:var(--color-accent-700);margin-top:3px"></div>
+        </div>
+      </div>
+      <div style="height:1px;background:var(--color-divider);margin-top:var(--space-3);position:relative">
+        <div id="m-kcal-bar" style="position:absolute;left:0;top:-1px;height:3px;background:var(--color-accent);width:0%"></div>
+      </div>
+      <hr class="hr">
+      <div id="m-macros" style="display:flex;flex-direction:column;gap:var(--space-3)"></div>
+      <p class="empty" id="m-guide" hidden>設定タブで身長・年齢・性別・活動レベルを入力すると目安が計算されます</p>
+      <div style="margin-top:var(--space-4);display:flex;gap:var(--space-2)">
+        <button class="btn btn-primary jp" style="flex:1;justify-content:center;font-size:15px;padding:11px" id="m-open-add">食事を記録</button>
+        <button class="btn btn-secondary jp" style="font-size:14px" id="m-open-sets">料理セット</button>
+      </div>
+      <hr class="hr">
+      <h2 class="h2">食事記録一覧</h2>
+      <div id="m-days" style="display:flex;flex-direction:column;gap:var(--space-4);margin-top:var(--space-3)"></div>
+      <p class="empty" id="m-days-empty" hidden>まだ記録がありません</p>
+    </div>
+
+    <div class="tab-panel scr" id="tab-trend" hidden>
+      <div class="kickg">体重の推移</div>
+      <div style="display:flex;align-items:flex-end;gap:var(--space-3);margin-top:var(--space-2)">
+        <div class="jp tnum" id="t-current" style="font-size:60px;line-height:.85;font-weight:300">--</div>
+        <div class="jp tnum muted" id="t-total" style="font-size:14px;padding-bottom:10px"></div>
+      </div>
+      <div style="display:flex;justify-content:center;margin:var(--space-4) 0">
+        <div class="seg jp" style="font-size:13px" id="t-period">
+          <button type="button" class="seg-opt" data-period="7">7日</button>
+          <button type="button" class="seg-opt" data-period="30">30日</button>
+          <button type="button" class="seg-opt" data-period="90">90日</button>
+        </div>
+      </div>
+      <div style="border:6px solid var(--color-surface);outline:1px solid var(--color-divider);background:var(--color-plate);padding:var(--space-3) var(--space-2) var(--space-2)">
+        <svg id="t-svg" viewBox="0 0 340 170" style="width:100%;display:block"></svg>
+        <div class="tnum muted" id="t-axis" style="display:flex;justify-content:space-between;font-size:9.5px;padding:6px 2px 0"></div>
+      </div>
+      <p class="empty" id="t-empty" hidden>体重を2件以上記録すると推移が表示されます</p>
+      <div id="t-stats" style="margin-top:var(--space-4);display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);padding:var(--space-3) 0">
+        <div style="text-align:center"><div class="kick">平均</div><div class="jp tnum" id="t-avg" style="font-size:21px;font-weight:400">--</div></div>
+        <div style="text-align:center;border-left:1px solid var(--color-divider);border-right:1px solid var(--color-divider)"><div class="kick">最小</div><div class="jp tnum" id="t-min" style="font-size:21px;font-weight:400">--</div></div>
+        <div style="text-align:center"><div class="kick">増減</div><div class="jp tnum" id="t-delta" style="font-size:21px;font-weight:400;color:var(--color-accent-700)">--</div></div>
+      </div>
+      <p style="font-size:13.5px;line-height:1.85;color:color-mix(in srgb, var(--color-ink) 78%, transparent);margin:var(--space-4) 0 0" id="t-summary"></p>
+    </div>
+
+    <div class="tab-panel scr" id="tab-settings" hidden>
+      <div class="kickg">見た目</div>
+      <div class="seg jp" style="font-size:13px;margin-top:var(--space-2)" id="s-theme">
+        <button type="button" class="seg-opt" data-theme="theme-hakuji">白磁</button>
+        <button type="button" class="seg-opt" data-theme="theme-koten">古典</button>
+        <button type="button" class="seg-opt" data-theme="theme-keiki">計器</button>
+      </div>
+      <hr class="hr">
+      <div class="kickg">身体と目標</div>
+      <div style="margin-top:var(--space-3);display:flex;flex-direction:column">
+        <div class="row"><label class="jp" style="font-size:14px">身長</label><div style="display:flex;align-items:baseline;gap:6px"><input class="input tnum" id="s-height" inputmode="decimal" style="width:76px;text-align:right;font-size:15px"><span class="muted" style="font-size:12px">cm</span></div></div>
+        <div class="row"><label class="jp" style="font-size:14px">開始体重</label><div style="display:flex;align-items:baseline;gap:6px"><input class="input tnum" id="s-start" inputmode="decimal" style="width:76px;text-align:right;font-size:15px"><span class="muted" style="font-size:12px">kg</span></div></div>
+        <div class="row"><label class="jp" style="font-size:14px">目標体重</label><div style="display:flex;align-items:baseline;gap:6px"><input class="input tnum" id="s-goal" inputmode="decimal" style="width:76px;text-align:right;font-size:15px"><span class="muted" style="font-size:12px">kg</span></div></div>
+      </div>
+      <p class="empty" id="s-goal-error" style="display:none;color:var(--color-accent-700);text-align:left;padding:4px 0 0"></p>
+      <hr class="hr">
+      <div class="kickg">カロリー計算の設定</div>
+      <div style="margin-top:var(--space-3);display:flex;flex-direction:column">
+        <div class="row"><label class="jp" style="font-size:14px">年齢</label><div style="display:flex;align-items:baseline;gap:6px"><input class="input tnum" id="s-age" inputmode="numeric" style="width:76px;text-align:right;font-size:15px"><span class="muted" style="font-size:12px">歳</span></div></div>
+        <div class="row"><label class="jp" style="font-size:14px">性別</label>
+          <div class="seg jp" style="font-size:13px" id="s-sex">
+            <button type="button" class="seg-opt" data-sex="male">男性</button>
+            <button type="button" class="seg-opt" data-sex="female">女性</button>
+          </div>
+        </div>
+        <div style="padding:12px 0;border-bottom:1px solid var(--color-divider)">
+          <label class="jp" style="font-size:14px">活動レベル</label>
+          <div style="display:flex;flex-direction:column;gap:2px;margin-top:8px" id="s-activity"></div>
+        </div>
+      </div>
+      <hr class="hr">
+      <div class="kickg">必要カロリー・栄養素の目安</div>
+      <div id="s-nutrition-box" style="margin-top:var(--space-3);border:1px solid var(--color-divider);border-radius:var(--radius-md);padding:var(--space-3)"></div>
+      <p class="empty" id="s-nutrition-guide" hidden>体重の記録に加えて、身長・年齢・性別・活動レベルを入力すると計算されます</p>
+      <p style="font-size:12px;line-height:1.8;color:color-mix(in srgb, var(--color-ink) 55%, transparent);margin-top:var(--space-3)">
+        基礎代謝は Mifflin-St Jeor 式、維持カロリーは活動レベル係数を掛けた値。増量目安は維持に <span class="tnum">350</span> kcal を加算しています。
+      </p>
+      <hr class="hr">
+      <div class="kickg">データ</div>
+      <div style="display:flex;gap:var(--space-2);margin-top:var(--space-3)">
+        <button type="button" class="btn btn-secondary jp" style="flex:1;justify-content:center" id="s-export">ファイルに保存</button>
+        <label class="btn btn-secondary jp" style="flex:1;justify-content:center;text-align:center">
+          ファイルから読込
+          <input type="file" id="s-import" accept=".json" hidden>
+        </label>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tabbar">
+    <button type="button" class="tab" data-tab="weight">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18M3 15h18M7 5v14M17 5v14"></path></svg>
+      <div class="jp lbl">体重</div><div class="rule"></div>
+    </button>
+    <button type="button" class="tab" data-tab="meal">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v8a3 3 0 006 0V3M8 11v10M17 3c-1.5 2-2 4-2 6 0 2 1 3 2 3s2-1 2-3c0-2-.5-4-2-6zM17 12v9"></path></svg>
+      <div class="jp lbl">食事</div><div class="rule"></div>
+    </button>
+    <button type="button" class="tab" data-tab="trend">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"></path></svg>
+      <div class="jp lbl">推移</div><div class="rule"></div>
+    </button>
+    <button type="button" class="tab" data-tab="settings">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9a3 3 0 100 6 3 3 0 000-6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"></path></svg>
+      <div class="jp lbl">設定</div><div class="rule"></div>
+    </button>
+  </div>
+
+  <div class="sheet" id="sheet-weight" hidden>
+    <div class="sheet-head">
+      <button type="button" class="btn btn-ghost jp" data-close-sheet>取消</button>
+      <div class="jp sheet-title" id="sheet-weight-title">記録を追加</div>
+      <button type="button" class="btn btn-primary jp" style="font-size:14px" id="wf-save">記す</button>
+    </div>
+    <div class="sheet-body">
+      <div style="text-align:center">
+        <div class="kickg tnum" id="wf-date-label"></div>
+        <div style="display:flex;align-items:flex-end;justify-content:center;gap:8px;margin-top:var(--space-3)">
+          <input class="jp tnum" id="wf-weight" inputmode="decimal" style="width:200px;font-size:72px;line-height:1;font-weight:300;text-align:right;background:transparent;border:0;border-bottom:1px solid var(--color-divider);color:var(--color-ink);caret-color:var(--color-accent);padding:0 4px 4px">
+          <div class="jp" style="font-size:19px;padding-bottom:13px">kg</div>
+        </div>
+      </div>
+      <hr class="hr" style="margin-top:var(--space-6)">
+      <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+        <div class="field"><label class="jp">日付</label><input class="input tnum" type="date" id="wf-date" style="font-size:15px"></div>
+        <div class="field"><label class="jp">体脂肪率（任意）</label><input class="input tnum" id="wf-fat" inputmode="decimal" placeholder="例: 18.5" style="font-size:15px"></div>
+      </div>
+      <p class="empty" id="wf-error" style="display:none;text-align:left;color:var(--color-accent-700)"></p>
+      <p style="font-size:12px;line-height:1.8;color:color-mix(in srgb, var(--color-ink) 55%, transparent);margin-top:var(--space-4)">直近の記録は <span class="tnum" id="wf-latest"></span> kg。</p>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-meal" hidden>
+    <div class="sheet-head">
+      <button type="button" class="btn btn-ghost jp" data-close-sheet>取消</button>
+      <div class="jp sheet-title">食事を記録</div>
+      <button type="button" class="btn btn-primary jp" style="font-size:14px" id="mf-save">記す</button>
+    </div>
+    <div class="sheet-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+        <div class="field"><label class="jp">カロリー</label><input class="input tnum" id="mf-kcal" inputmode="decimal" style="font-size:15px"></div>
+        <div class="field"><label class="jp">タンパク質 g</label><input class="input tnum" id="mf-p" inputmode="decimal" style="font-size:15px"></div>
+        <div class="field"><label class="jp">脂質 g</label><input class="input tnum" id="mf-f" inputmode="decimal" style="font-size:15px"></div>
+        <div class="field"><label class="jp">炭水化物 g</label><input class="input tnum" id="mf-c" inputmode="decimal" style="font-size:15px"></div>
+      </div>
+      <p class="empty" id="mf-error" style="display:none;text-align:left;color:var(--color-accent-700)"></p>
+      <hr class="hr">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h2 class="h2">料理セットから</h2>
+        <div class="kick">一押しで入力</div>
+      </div>
+      <div id="mf-presets" style="display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-3)"></div>
+      <p class="empty" id="mf-presets-empty" hidden>料理セットがまだありません</p>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-sets" hidden>
+    <div class="sheet-head">
+      <button type="button" class="btn btn-ghost jp" data-close-sheet>閉じる</button>
+      <div class="jp sheet-title">料理セット</div>
+      <button type="button" class="btn btn-primary jp" style="font-size:14px" id="sets-add">＋ 追加</button>
+    </div>
+    <div class="sheet-body">
+      <p style="font-size:13px;line-height:1.85;color:color-mix(in srgb, var(--color-ink) 75%, transparent);margin:0 0 var(--space-4)">
+        よく食べる組み合わせを控えておくと、記録は一押しで済みます。行をタップするとその内容で食事を記録します。数値は一人前あたり。
+      </p>
+      <div id="sets-list" style="display:flex;flex-direction:column;gap:var(--space-2)"></div>
+      <p class="empty" id="sets-empty" hidden>料理セットがまだありません。「＋ 追加」から登録できます</p>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-preset" hidden>
+    <div class="sheet-head">
+      <button type="button" class="btn btn-ghost jp" data-close-sheet>取消</button>
+      <div class="jp sheet-title" id="preset-title">料理セットを追加</div>
+      <button type="button" class="btn btn-primary jp" style="font-size:14px" id="preset-save">保存</button>
+    </div>
+    <div class="sheet-body">
+      <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+        <div class="field"><label class="jp">名前</label><input class="input" id="preset-name" maxlength="60" style="font-size:15px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+          <div class="field"><label class="jp">カロリー</label><input class="input tnum" id="preset-kcal" inputmode="decimal" style="font-size:15px"></div>
+          <div class="field"><label class="jp">タンパク質 g</label><input class="input tnum" id="preset-p" inputmode="decimal" style="font-size:15px"></div>
+          <div class="field"><label class="jp">脂質 g</label><input class="input tnum" id="preset-f" inputmode="decimal" style="font-size:15px"></div>
+          <div class="field"><label class="jp">炭水化物 g</label><input class="input tnum" id="preset-c" inputmode="decimal" style="font-size:15px"></div>
+        </div>
+      </div>
+      <p class="empty" id="preset-error" style="display:none;text-align:left;color:var(--color-accent-700)"></p>
+      <button type="button" class="btn btn-secondary jp" id="preset-delete" style="margin-top:var(--space-4);color:var(--color-accent-700)" hidden>このセットを削除</button>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" hidden>
+  <div class="modal-box">
+    <p class="modal-message" id="modal-message"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary jp" id="modal-cancel-btn">キャンセル</button>
+      <button type="button" class="btn btn-primary jp" id="modal-ok-btn">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================================
+// Layer 1: Types（JSDoc）
+// =============================================================
+/**
+ * @typedef {{ height:number|null, startWeight:number|null, targetWeight:number|null, age:number|null, sex:'male'|'female'|null, activityLevel:string|null, theme:string }} Profile
+ * @typedef {{ id:string, date:string, weight:number, bodyFatPercent:number|null }} WeightRecord
+ * @typedef {{ id:string, date:string, name:string|null, calories:number, proteinG:number|null, fatG:number|null, carbG:number|null }} IntakeRecord
+ * @typedef {{ id:string, name:string, calories:number, proteinG:number, fatG:number, carbG:number }} Preset
+ * @typedef {{ version:number, profile:Profile, records:WeightRecord[], intakeRecords:IntakeRecord[], presets:Preset[] }} AppData
+ * @template T
+ * @typedef {{ ok:true, value:T }|{ ok:false, error:string }} Result
+ */
+
+const ACTIVITY_LEVELS = ['sedentary', 'light', 'moderate', 'active', 'very_active'];
+const ACTIVITY_OPTIONS = [
+  { value: 'sedentary', label: '座位中心（ほぼ運動なし）', factor: '1.2' },
+  { value: 'light', label: '軽い運動（週 1〜3 日）', factor: '1.375' },
+  { value: 'moderate', label: '中程度（週 3〜5 日）', factor: '1.55' },
+  { value: 'active', label: '高い（週 6〜7 日）', factor: '1.725' },
+  { value: 'very_active', label: '非常に高い（毎日激しい運動）', factor: '1.9' },
+];
+const THEMES = { hakuji: 'theme-hakuji', koten: 'theme-koten', keiki: 'theme-keiki' };
+/** ホーム画面から起動したときのステータスバー色。各テーマの背景色と合わせる */
+const THEME_COLORS = { hakuji: '#faf8f4', koten: '#f3f2f2', keiki: '#14191d' };
+const DEFAULT_PRESETS = [
+  { name: '鶏胸肉と玄米', calories: 620, proteinG: 48, fatG: 12, carbG: 78 },
+  { name: 'プロテイン一杯', calories: 130, proteinG: 24, fatG: 2, carbG: 4 },
+  { name: '焼魚定食', calories: 680, proteinG: 38, fatG: 22, carbG: 84 },
+  { name: '納豆卵かけご飯', calories: 480, proteinG: 22, fatG: 13, carbG: 66 },
+  { name: 'サラダチキンとゆで卵', calories: 290, proteinG: 36, fatG: 11, carbG: 3 },
+];
+
+function generateId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+}
+
+function defaultData() {
+  return {
+    version: 2,
+    profile: { height: null, startWeight: null, targetWeight: null, age: null, sex: null, activityLevel: null, theme: 'hakuji' },
+    records: [],
+    intakeRecords: [],
+    presets: DEFAULT_PRESETS.map((p) => ({ id: generateId(), ...p })),
+  };
+}
+
+/** 旧バージョン（v1）のデータを現行の形に整える。v1にしか無いフィールドはここで落とす */
+function migrateData(parsed) {
+  if (!parsed || typeof parsed !== 'object') return parsed;
+  if (parsed.profile && typeof parsed.profile === 'object') {
+    const p = parsed.profile;
+    p.age ??= null; p.sex ??= null; p.activityLevel ??= null;
+    if (!Object.keys(THEMES).includes(p.theme)) p.theme = 'hakuji';
+    delete p.targetDate;
+  }
+  if (Array.isArray(parsed.records)) {
+    parsed.records = parsed.records.map((r) => ({
+      id: r.id, date: r.date, weight: r.weight, bodyFatPercent: r.bodyFatPercent ?? null,
+    }));
+  }
+  parsed.intakeRecords ??= [];
+  if (Array.isArray(parsed.intakeRecords)) {
+    parsed.intakeRecords = parsed.intakeRecords.map((r) => ({
+      id: r.id, date: r.date, name: r.name ?? r.memo ?? null,
+      calories: r.calories, proteinG: r.proteinG ?? null, fatG: r.fatG ?? null, carbG: r.carbG ?? null,
+    }));
+  }
+  if (!Array.isArray(parsed.presets) || parsed.presets.length === 0) {
+    parsed.presets = DEFAULT_PRESETS.map((p) => ({ id: generateId(), ...p }));
+  }
+  parsed.version = 2;
+  return parsed;
+}
+
+// =============================================================
+// Layer 2: Storage
+// =============================================================
+const Storage = {
+  KEY: 'weight_v1',
+
+  /** @returns {AppData} */
+  load() {
+    // サンドボックス内やプライベートモードではlocalStorage自体が例外を投げる。
+    // その場合は保存データが無いのと同じ扱いにし、警告は出さない
+    let raw = null;
+    try {
+      raw = localStorage.getItem(this.KEY);
+    } catch {
+      return defaultData();
+    }
+    if (!raw) return defaultData();
+    try {
+      const parsed = migrateData(JSON.parse(raw));
+      if (Validator.appData(parsed)) return parsed;
+    } catch {
+      showAlert('保存データを読み取れなかったため、初期状態から始めます');
+      return defaultData();
+    }
+    showAlert('保存データの形式が正しくないため、初期状態から始めます');
+    return defaultData();
+  },
+
+  /** @param {AppData} d */
+  save(d) {
+    try {
+      localStorage.setItem(this.KEY, JSON.stringify(d));
+    } catch (err) {
+      // localStorage自体が使えない環境（サンドボックス等）では毎回警告を出さず黙って諦める。
+      // 容量超過だけは保存できていないことを伝える
+      if (err && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+        showAlert('保存に失敗しました（ストレージ容量不足の可能性があります）');
+      }
+    }
+  },
+
+  /** @param {AppData} d */
+  downloadFile(d) {
+    const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `weight-data-${Calc.localDateString()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  /** @param {File} file @returns {Promise<AppData>} */
+  readFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
+      reader.onload = (e) => {
+        try {
+          const parsed = migrateData(JSON.parse(e.target.result));
+          if (!Validator.appData(parsed)) { reject(new Error('ファイルの形式が正しくありません')); return; }
+          resolve(parsed);
+        } catch {
+          reject(new Error('ファイルの形式が正しくありません'));
+        }
+      };
+      reader.readAsText(file);
+    });
+  },
+};
+
+// =============================================================
+// Layer 3: Validator
+// =============================================================
+const Validator = {
+  appData(d) {
+    if (!d || typeof d !== 'object') return false;
+    if (typeof d.version !== 'number') return false;
+    if (!this.profile(d.profile)) return false;
+    if (!Array.isArray(d.records) || !d.records.every((r) => this.record(r))) return false;
+    if (!Array.isArray(d.intakeRecords) || !d.intakeRecords.every((r) => this.intakeRecord(r))) return false;
+    return Array.isArray(d.presets) && d.presets.every((p) => this.preset(p));
+  },
+  profile(p) {
+    if (!p || typeof p !== 'object') return false;
+    const numOrNull = (v) => v === null || typeof v === 'number';
+    if (!numOrNull(p.height) || !numOrNull(p.startWeight) || !numOrNull(p.targetWeight) || !numOrNull(p.age)) return false;
+    if (p.sex !== null && p.sex !== 'male' && p.sex !== 'female') return false;
+    if (p.activityLevel !== null && !ACTIVITY_LEVELS.includes(p.activityLevel)) return false;
+    return Object.keys(THEMES).includes(p.theme);
+  },
+  record(r) {
+    if (!r || typeof r !== 'object') return false;
+    if (typeof r.id !== 'string' || typeof r.date !== 'string' || typeof r.weight !== 'number') return false;
+    return r.bodyFatPercent === null || typeof r.bodyFatPercent === 'number';
+  },
+  intakeRecord(r) {
+    if (!r || typeof r !== 'object') return false;
+    if (typeof r.id !== 'string' || typeof r.date !== 'string' || typeof r.calories !== 'number') return false;
+    const numOrNull = (v) => v === null || typeof v === 'number';
+    if (!numOrNull(r.proteinG) || !numOrNull(r.fatG) || !numOrNull(r.carbG)) return false;
+    return r.name === null || typeof r.name === 'string';
+  },
+  preset(p) {
+    if (!p || typeof p !== 'object') return false;
+    if (typeof p.id !== 'string' || typeof p.name !== 'string') return false;
+    return ['calories', 'proteinG', 'fatG', 'carbG'].every((k) => typeof p[k] === 'number');
+  },
+};
+
+// =============================================================
+// Layer 4: Calc（純粋関数・DOM操作なし）
+// =============================================================
+const Calc = {
+  localDateString(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  },
+
+  /** 'YYYY-MM-DD' → '2026年 9月16日 水' */
+  longDateLabel(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    if (isNaN(d)) return iso;
+    const week = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+    return `${d.getFullYear()}年 ${d.getMonth() + 1}月${d.getDate()}日 ${week}`;
+  },
+
+  /** 'YYYY-MM-DD' → '9/16' */
+  shortDateLabel(iso) {
+    const parts = iso.split('-');
+    return parts.length === 3 ? `${Number(parts[1])}/${Number(parts[2])}` : iso;
+  },
+
+  daysBetween(fromIso, toIso) {
+    return Math.round((new Date(toIso + 'T00:00:00') - new Date(fromIso + 'T00:00:00')) / 86400000);
+  },
+
+  bmi(weightKg, heightCm) {
+    if (weightKg == null || heightCm == null || heightCm <= 0) return null;
+    const h = heightCm / 100;
+    return weightKg / (h * h);
+  },
+
+  ffmiNormalized(weightKg, heightCm, bodyFatPercent) {
+    if (weightKg == null || heightCm == null || heightCm <= 0 || bodyFatPercent == null) return null;
+    const h = heightCm / 100;
+    const leanMass = weightKg * (1 - bodyFatPercent / 100);
+    return leanMass / (h * h) + 6.1 * (1.8 - h);
+  },
+
+  gmpdCategory(bmi, bodyFatPercent) {
+    if (bmi == null) return null;
+    if (bodyFatPercent != null && bmi >= 25 && bodyFatPercent >= 30) return 'ぽっちゃり';
+    if (bmi >= 25) return 'デブ';
+    if (bodyFatPercent != null && bmi >= 22 && bmi <= 24.9 && bodyFatPercent >= 25 && bodyFatPercent <= 30) return 'ムッチリ';
+    return '標準・やせ型';
+  },
+
+  /** 開始体重から目標体重までの達成率（0〜100に丸めない生の値） */
+  progressPercent(current, start, target) {
+    if (current == null || start == null || target == null || target === start) return null;
+    return (current - start) / (target - start) * 100;
+  },
+
+  ACTIVITY_MULTIPLIERS: { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, very_active: 1.9 },
+  BULK_SURPLUS_KCAL: 350,
+
+  bmr(weightKg, heightCm, age, sex) {
+    if (weightKg == null || heightCm == null || age == null || sex == null) return null;
+    const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
+    return sex === 'male' ? base + 5 : base - 161;
+  },
+
+  tdee(bmrValue, activityLevel) {
+    if (bmrValue == null || activityLevel == null) return null;
+    const mult = Calc.ACTIVITY_MULTIPLIERS[activityLevel];
+    return mult ? bmrValue * mult : null;
+  },
+
+  calorieTarget(tdeeValue) {
+    return tdeeValue == null ? null : tdeeValue + Calc.BULK_SURPLUS_KCAL;
+  },
+
+  macros(calorieTargetValue, weightKg) {
+    if (calorieTargetValue == null || weightKg == null) return null;
+    const proteinG = weightKg * 2.0;
+    const fatKcal = calorieTargetValue * 0.25;
+    const fatG = fatKcal / 9;
+    const carbKcal = Math.max(0, calorieTargetValue - proteinG * 4 - fatKcal);
+    return { proteinG, fatG, carbG: carbKcal / 4 };
+  },
+
+  /**
+   * 指定日の摂取記録を合計する。栄養素は、その日の全品目が未入力のときだけ null にする。
+   * 小数の合計はJSの浮動小数点誤差が出るため、返す前に小数第1位へ丸める。
+   */
+  sumIntakeForDate(intakeRecords, date) {
+    const entries = intakeRecords.filter((r) => r.date === date);
+    if (entries.length === 0) return null;
+    const sumOptional = (key) => {
+      const withValue = entries.filter((r) => r[key] != null);
+      if (withValue.length === 0) return null;
+      return Math.round(withValue.reduce((s, r) => s + r[key], 0) * 10) / 10;
+    };
+    return {
+      date,
+      calories: entries.reduce((s, r) => s + r.calories, 0),
+      proteinG: sumOptional('proteinG'),
+      fatG: sumOptional('fatG'),
+      carbG: sumOptional('carbG'),
+      count: entries.length,
+    };
+  },
+
+  /** 直近 periodDays 日ぶんの記録を日付昇順で返す */
+  recordsInPeriod(records, periodDays, today = Calc.localDateString()) {
+    const from = new Date(today + 'T00:00:00');
+    from.setDate(from.getDate() - (periodDays - 1));
+    const fromIso = Calc.localDateString(from);
+    return records.filter((r) => r.date >= fromIso && r.date <= today).sort((a, b) => a.date.localeCompare(b.date));
+  },
+
+  /** SVG（340×170）用の座標列を作る */
+  chartPoints(weights, goalWeight) {
+    if (weights.length === 0) return [];
+    const pool = goalWeight == null ? weights : [...weights, goalWeight];
+    const mx = Math.max(...pool);
+    const mn = Math.min(...pool);
+    return weights.map((v, i) => {
+      const x = weights.length === 1 ? 336 : 6 + i * (330 / (weights.length - 1));
+      const y = 20 + (mx - v) / Math.max(0.1, mx - mn) * 120;
+      return [Math.round(x), Math.round(y)];
+    });
+  },
+
+  /** 目標体重の水平線を引くY座標（範囲外なら null） */
+  goalLineY(weights, goalWeight) {
+    if (goalWeight == null || weights.length === 0) return null;
+    const pool = [...weights, goalWeight];
+    const mx = Math.max(...pool);
+    const mn = Math.min(...pool);
+    return Math.round(20 + (mx - goalWeight) / Math.max(0.1, mx - mn) * 120);
+  },
+};
+
+// =============================================================
+// Layer 5: Service（AppDataを業務ルールに沿って書き換える）
+// =============================================================
+const Service = {
+  findRecordByDate(records, date) {
+    return records.find((r) => r.date === date);
+  },
+
+  upsertRecord(appData, input) {
+    const data = structuredClone(appData);
+    const conflictIndex = data.records.findIndex((r) => r.date === input.date);
+    const record = {
+      id: conflictIndex >= 0 ? data.records[conflictIndex].id : generateId(),
+      date: input.date,
+      weight: input.weight,
+      bodyFatPercent: input.bodyFatPercent ?? null,
+    };
+    if (conflictIndex >= 0) data.records[conflictIndex] = record;
+    else data.records.push(record);
+
+    if (data.profile.startWeight === null) {
+      data.profile.startWeight = input.weight;
+      // 記録リセット後に古い目標体重が残り、新しい開始体重以下になる場合は目標を無効化する
+      if (data.profile.targetWeight != null && data.profile.targetWeight <= data.profile.startWeight) {
+        data.profile.targetWeight = null;
+      }
+    }
+    return data;
+  },
+
+  deleteRecord(appData, id) {
+    const data = structuredClone(appData);
+    data.records = data.records.filter((r) => r.id !== id);
+    if (data.records.length === 0) data.profile.startWeight = null;
+    return data;
+  },
+
+  setGoal(appData, { height, startWeight, targetWeight }) {
+    if (startWeight != null && targetWeight != null && targetWeight <= startWeight) {
+      return { ok: false, error: '目標体重は開始体重より大きい値を入力してください' };
+    }
+    const data = structuredClone(appData);
+    data.profile.height = height;
+    data.profile.startWeight = startWeight;
+    data.profile.targetWeight = targetWeight;
+    return { ok: true, value: data };
+  },
+
+  setNutritionProfile(appData, { age, sex, activityLevel }) {
+    const data = structuredClone(appData);
+    if (age !== undefined) data.profile.age = age;
+    if (sex !== undefined) data.profile.sex = sex;
+    if (activityLevel !== undefined) data.profile.activityLevel = activityLevel;
+    return data;
+  },
+
+  setTheme(appData, theme) {
+    const data = structuredClone(appData);
+    data.profile.theme = theme;
+    return data;
+  },
+
+  addIntakeRecord(appData, input) {
+    const data = structuredClone(appData);
+    data.intakeRecords.push({ id: generateId(), ...input });
+    return data;
+  },
+
+  deleteIntakeDate(appData, date) {
+    const data = structuredClone(appData);
+    data.intakeRecords = data.intakeRecords.filter((r) => r.date !== date);
+    return data;
+  },
+
+  upsertPreset(appData, input) {
+    const data = structuredClone(appData);
+    const index = input.id ? data.presets.findIndex((p) => p.id === input.id) : -1;
+    const preset = {
+      id: input.id || generateId(),
+      name: input.name,
+      calories: input.calories,
+      proteinG: input.proteinG,
+      fatG: input.fatG,
+      carbG: input.carbG,
+    };
+    if (index >= 0) data.presets[index] = preset;
+    else data.presets.push(preset);
+    return data;
+  },
+
+  deletePreset(appData, id) {
+    const data = structuredClone(appData);
+    data.presets = data.presets.filter((p) => p.id !== id);
+    return data;
+  },
+};
+
+// =============================================================
+// 入力のパース
+// =============================================================
+function parseOptionalNumber(value, label, { min = 0, max = Infinity, round = 1 } = {}) {
+  if (value === '' || value == null) return { ok: true, value: null };
+  const n = Number(value);
+  if (isNaN(n) || n < min || n > max) return { ok: false, error: `${label}は${min}〜${max === Infinity ? '' : max}の数値で入力してください` };
+  return { ok: true, value: Math.round(n * (round === 1 ? 10 : 1)) / (round === 1 ? 10 : 1) };
+}
+
+function parseRecordForm({ date, weight, bodyFatPercent }) {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: '日付を入力してください' };
+  const w = Number(weight);
+  if (weight === '' || isNaN(w) || w <= 0) return { ok: false, error: '正しい体重を入力してください' };
+  const fat = parseOptionalNumber(bodyFatPercent, '体脂肪率', { min: 0, max: 100 });
+  if (!fat.ok) return fat;
+  return { ok: true, value: { date, weight: Math.round(w * 10) / 10, bodyFatPercent: fat.value } };
+}
+
+function parseIntakeForm({ date, name, calories, proteinG, fatG, carbG }) {
+  const cal = Number(calories);
+  if (calories === '' || isNaN(cal) || cal < 0) return { ok: false, error: '正しいカロリーを入力してください' };
+  const p = parseOptionalNumber(proteinG, 'タンパク質');
+  if (!p.ok) return p;
+  const f = parseOptionalNumber(fatG, '脂質');
+  if (!f.ok) return f;
+  const c = parseOptionalNumber(carbG, '炭水化物');
+  if (!c.ok) return c;
+  return {
+    ok: true,
+    value: { date, name: name || null, calories: Math.round(cal), proteinG: p.value, fatG: f.value, carbG: c.value },
+  };
+}
+
+function parsePresetForm({ id, name, calories, proteinG, fatG, carbG }) {
+  const trimmed = (name || '').trim().slice(0, 60);
+  if (!trimmed) return { ok: false, error: '名前を入力してください' };
+  const cal = Number(calories);
+  if (calories === '' || isNaN(cal) || cal < 0) return { ok: false, error: '正しいカロリーを入力してください' };
+  const nums = {};
+  for (const [key, label] of [['proteinG', 'タンパク質'], ['fatG', '脂質'], ['carbG', '炭水化物']]) {
+    const parsed = parseOptionalNumber({ proteinG, fatG, carbG }[key], label);
+    if (!parsed.ok) return parsed;
+    nums[key] = parsed.value ?? 0;
+  }
+  return { ok: true, value: { id, name: trimmed, calories: Math.round(cal), ...nums } };
+}
+
+// =============================================================
+// Layer 6: Render（DOM書き込みのみ）
+// =============================================================
+const $ = (id) => document.getElementById(id);
+
+/**
+ * 一部の簡易HTMLビューアは window.confirm()/alert() を実装しておらず、
+ * 呼んでも何も起きずに処理が止まるため、DOMだけで完結する自前モーダルに置き換えている。
+ */
+function showConfirm(message) {
+  return new Promise((resolve) => {
+    const overlay = $('modal-overlay'), okBtn = $('modal-ok-btn'), cancelBtn = $('modal-cancel-btn');
+    $('modal-message').textContent = message;
+    cancelBtn.hidden = false;
+    overlay.hidden = false;
+    const cleanup = (result) => {
+      overlay.hidden = true;
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+
+function showAlert(message) {
+  return new Promise((resolve) => {
+    const overlay = $('modal-overlay'), okBtn = $('modal-ok-btn');
+    $('modal-message').textContent = message;
+    $('modal-cancel-btn').hidden = true;
+    overlay.hidden = false;
+    const onOk = () => {
+      overlay.hidden = true;
+      okBtn.removeEventListener('click', onOk);
+      resolve();
+    };
+    okBtn.addEventListener('click', onOk);
+  });
+}
+
+function showError(el, message) {
+  if (!message) { el.style.display = 'none'; return; }
+  el.textContent = message;
+  el.style.display = 'block';
+}
+
+const fmt1 = (n) => (n == null ? '--' : n.toFixed(1));
+const signed = (n) => (n >= 0 ? '＋' : '−') + Math.abs(n).toFixed(1);
+
+function latestRecord(records) {
+  return [...records].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+}
+
+/** 現在の体重・目安カロリー・PFC目安をまとめて求める */
+function deriveNutrition(appData) {
+  const { profile, records } = appData;
+  const latest = latestRecord(records);
+  const currentWeight = latest ? latest.weight : profile.startWeight;
+  const bmr = Calc.bmr(currentWeight, profile.height, profile.age, profile.sex);
+  const tdee = Calc.tdee(bmr, profile.activityLevel);
+  const target = Calc.calorieTarget(tdee);
+  return { currentWeight, bmr, tdee, target, macros: Calc.macros(target, currentWeight) };
+}
+
+function renderWeightTab(appData) {
+  const { profile, records } = appData;
+  const latest = latestRecord(records);
+  const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+  const current = latest ? latest.weight : null;
+  const prev = sorted[1] ? sorted[1].weight : null;
+
+  $('w-today').textContent = Calc.longDateLabel(Calc.localDateString());
+  $('w-count').textContent = `記録 ${records.length} 日`;
+  $('w-current').textContent = current == null ? '--' : current.toFixed(1);
+  $('w-delta').textContent = current != null && prev != null ? `${signed(current - prev)} 前日比` : '';
+
+  const bmi = Calc.bmi(current, profile.height);
+  $('w-goal').textContent = fmt1(profile.targetWeight);
+  $('w-goal2').textContent = fmt1(profile.targetWeight);
+  $('w-start').textContent = fmt1(profile.startWeight);
+  $('w-remain').textContent = current != null && profile.targetWeight != null ? (profile.targetWeight - current).toFixed(1) : '--';
+  $('w-bmi').textContent = bmi == null ? '--' : bmi.toFixed(1);
+
+  const percent = Calc.progressPercent(current, profile.startWeight, profile.targetWeight);
+  const clamped = percent == null ? 0 : Math.max(0, Math.min(100, percent));
+  $('w-progress-bar').style.width = `${clamped}%`;
+  $('w-progress-text').textContent = percent == null ? '目標を設定すると進捗が出ます' : `${Math.round(percent)}% 達成`;
+
+  const fat = latest ? latest.bodyFatPercent : null;
+  const ffmi = Calc.ffmiNormalized(current, profile.height, fat);
+  const gmpd = fat != null ? Calc.gmpdCategory(bmi, fat) : null;
+  $('w-judge').textContent = latest == null ? ''
+    : fat == null ? '体脂肪率を記録すると FFMI・GMPD区分が表示されます'
+    : `体脂肪率 ${fat.toFixed(1)}% ／ FFMI ${ffmi == null ? '未計算' : ffmi.toFixed(1)} ／ GMPD区分 ${gmpd ?? '未計算'}`;
+
+  const tbody = $('w-history');
+  tbody.innerHTML = '';
+  $('w-history-empty').hidden = records.length > 0;
+  for (const r of sorted) {
+    const rowBmi = Calc.bmi(r.weight, profile.height);
+    const tr = document.createElement('tr');
+    tr.dataset.recordId = r.id;
+    tr.style.cursor = 'pointer';
+    for (const [text, align] of [[Calc.shortDateLabel(r.date), 'left'], [r.weight.toFixed(1), 'right'], [rowBmi == null ? '--' : rowBmi.toFixed(1), 'right']]) {
+      const td = document.createElement('td');
+      td.textContent = text;
+      td.style.textAlign = align;
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+}
+
+function macroBar(label, eaten, target, color) {
+  const wrap = document.createElement('div');
+  const head = document.createElement('div');
+  head.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline';
+  const name = document.createElement('div');
+  name.className = 'jp';
+  name.style.fontSize = '15px';
+  name.textContent = label;
+  const value = document.createElement('div');
+  value.className = 'tnum muted';
+  value.style.fontSize = '13px';
+  value.textContent = `${eaten == null ? '--' : eaten} / ${Math.round(target)} g`;
+  head.append(name, value);
+
+  const track = document.createElement('div');
+  track.style.cssText = 'height:1px;background:var(--color-divider);margin-top:6px;position:relative';
+  const fill = document.createElement('div');
+  const pct = eaten == null ? 0 : Math.min(100, Math.round(eaten / Math.max(1, target) * 100));
+  fill.style.cssText = `position:absolute;left:0;top:-1px;height:3px;background:${color};width:${pct}%`;
+  track.appendChild(fill);
+
+  wrap.append(head, track);
+  return wrap;
+}
+
+function renderMealTab(appData, ui) {
+  const { intakeRecords } = appData;
+  const { target, macros } = deriveNutrition(appData);
+  const dates = [...new Set(intakeRecords.map((r) => r.date))].sort((a, b) => b.localeCompare(a));
+  const latestDate = dates[0] ?? Calc.localDateString();
+  const totals = Calc.sumIntakeForDate(intakeRecords, latestDate);
+
+  $('m-today').textContent = Calc.longDateLabel(latestDate);
+  $('m-eaten').textContent = totals ? String(totals.calories) : '0';
+  $('m-target').textContent = target == null ? '／ 目安未計算' : `／ ${Math.round(target)} kcal`;
+  $('m-left').textContent = target == null ? '' : `残り ${Math.max(0, Math.round(target - (totals?.calories ?? 0)))} kcal`;
+  $('m-kcal-bar').style.width = target == null ? '0%' : `${Math.min(100, Math.round((totals?.calories ?? 0) / target * 100))}%`;
+
+  const macroBox = $('m-macros');
+  macroBox.innerHTML = '';
+  $('m-guide').hidden = macros != null;
+  if (macros) {
+    macroBox.append(
+      macroBar('タンパク質', totals?.proteinG ?? null, macros.proteinG, 'var(--color-ink)'),
+      macroBar('脂質', totals?.fatG ?? null, macros.fatG, 'var(--color-accent)'),
+      macroBar('炭水化物', totals?.carbG ?? null, macros.carbG, 'var(--color-accent-700)'),
+    );
+  }
+
+  const daysBox = $('m-days');
+  daysBox.innerHTML = '';
+  $('m-days-empty').hidden = dates.length > 0;
+  const pc = (a, b) => (b == null || a == null ? '--' : Math.round(a / Math.max(1, b) * 100));
+
+  for (const date of dates) {
+    const day = Calc.sumIntakeForDate(intakeRecords, date);
+    const open = ui.openDay === date;
+    const block = document.createElement('div');
+
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--color-ink);padding-bottom:5px';
+    const headLeft = document.createElement('div');
+    headLeft.className = 'jp tnum';
+    headLeft.style.cssText = 'font-size:17px;font-weight:500;cursor:pointer';
+    headLeft.dataset.toggleDay = date;
+    headLeft.innerHTML = `${Calc.shortDateLabel(date)}<span class="jp muted" style="font-size:12px;font-weight:400;margin-left:7px">${day.count} 件</span>`;
+    const headRight = document.createElement('div');
+    headRight.style.cssText = 'display:flex;align-items:baseline;gap:8px';
+    const kcal = document.createElement('div');
+    kcal.className = 'jp tnum';
+    kcal.style.cssText = 'font-size:17px;font-weight:400';
+    kcal.innerHTML = `${day.calories} <span style="font-size:11px">kcal</span>`;
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.dataset.toggleDay = date;
+    toggle.style.cssText = 'background:none;border:0;cursor:pointer;font-size:11px;color:var(--color-accent-700);font-family:inherit;padding:0';
+    toggle.textContent = open ? '閉じる' : '内訳';
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.dataset.deleteDay = date;
+    del.style.cssText = 'background:none;border:0;cursor:pointer;font-size:11px;color:color-mix(in srgb, var(--color-ink) 45%, transparent);font-family:inherit;padding:0';
+    del.textContent = '削除';
+    headRight.append(kcal, toggle, del);
+    head.append(headLeft, headRight);
+
+    const table = document.createElement('table');
+    table.className = 'tb';
+    table.innerHTML = `
+      <thead><tr><th></th><th style="text-align:right;width:54px">kcal</th><th style="text-align:right;width:40px">P g</th><th style="text-align:right;width:40px">F g</th><th style="text-align:right;width:40px">C g</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="jp" style="font-variant-numeric:normal;font-size:14px;border-bottom:0">合計</td>
+          <td style="text-align:right;border-bottom:0;font-size:15px">${day.calories}</td>
+          <td style="text-align:right;border-bottom:0;font-size:15px">${day.proteinG ?? '--'}</td>
+          <td style="text-align:right;border-bottom:0;font-size:15px">${day.fatG ?? '--'}</td>
+          <td style="text-align:right;border-bottom:0;font-size:15px">${day.carbG ?? '--'}</td>
+        </tr>
+        <tr>
+          <td style="font-variant-numeric:normal;font-size:11px;letter-spacing:.06em;color:color-mix(in srgb, var(--color-ink) 50%, transparent);border-bottom:0;padding-top:0">目安比</td>
+          <td style="text-align:right;border-bottom:0;padding-top:0;font-size:11px;color:var(--color-accent-700)">${pc(day.calories, target == null ? null : Math.round(target))}%</td>
+          <td style="text-align:right;border-bottom:0;padding-top:0;font-size:11px;color:var(--color-accent-700)">${pc(day.proteinG, macros == null ? null : Math.round(macros.proteinG))}%</td>
+          <td style="text-align:right;border-bottom:0;padding-top:0;font-size:11px;color:var(--color-accent-700)">${pc(day.fatG, macros == null ? null : Math.round(macros.fatG))}%</td>
+          <td style="text-align:right;border-bottom:0;padding-top:0;font-size:11px;color:var(--color-accent-700)">${pc(day.carbG, macros == null ? null : Math.round(macros.carbG))}%</td>
+        </tr>
+      </tbody>`;
+
+    block.append(head, table);
+
+    if (open) {
+      const items = intakeRecords.filter((r) => r.date === date);
+      const detail = document.createElement('table');
+      detail.className = 'tb';
+      detail.style.cssText = 'margin-top:var(--space-2);border-top:1px solid var(--color-divider)';
+      const body = document.createElement('tbody');
+      items.forEach((item, i) => {
+        const tr = document.createElement('tr');
+        const label = document.createElement('td');
+        label.style.cssText = 'font-variant-numeric:normal;color:color-mix(in srgb, var(--color-ink) 70%, transparent)';
+        label.textContent = item.name || `${i + 1} 食目`;
+        tr.appendChild(label);
+        for (const [v, w] of [[item.calories, 54], [item.proteinG, 40], [item.fatG, 40], [item.carbG, 40]]) {
+          const td = document.createElement('td');
+          td.style.cssText = `text-align:right;width:${w}px`;
+          td.textContent = v ?? '--';
+          tr.appendChild(td);
+        }
+        body.appendChild(tr);
+      });
+      detail.appendChild(body);
+      block.appendChild(detail);
+    }
+
+    daysBox.appendChild(block);
+  }
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+
+function renderTrendTab(appData, ui) {
+  const { profile, records } = appData;
+  const latest = latestRecord(records);
+  const current = latest ? latest.weight : null;
+
+  $('t-current').textContent = current == null ? '--' : current.toFixed(1);
+  $('t-total').textContent = current != null && profile.startWeight != null
+    ? `kg ／ 開始から ${signed(current - profile.startWeight)} kg` : 'kg';
+
+  for (const btn of $('t-period').querySelectorAll('.seg-opt')) {
+    btn.classList.toggle('active', Number(btn.dataset.period) === ui.period);
+  }
+
+  const inPeriod = Calc.recordsInPeriod(records, ui.period);
+  const weights = inPeriod.map((r) => r.weight);
+  const svg = $('t-svg');
+  svg.innerHTML = '';
+  $('t-empty').hidden = weights.length >= 2;
+  $('t-stats').hidden = weights.length === 0;
+
+  if (weights.length > 0) {
+    const grid = svgEl('g', { stroke: 'var(--color-divider)', 'stroke-width': '1' });
+    for (const y of [26, 76, 126]) grid.appendChild(svgEl('line', { x1: 0, y1: y, x2: 340, y2: y }));
+    svg.appendChild(grid);
+
+    const goalY = Calc.goalLineY(weights, profile.targetWeight);
+    if (goalY != null) {
+      svg.appendChild(svgEl('line', { x1: 0, y1: goalY, x2: 340, y2: goalY, stroke: 'var(--color-accent)', 'stroke-width': '1', 'stroke-dasharray': '3 4' }));
+      const label = svgEl('text', { x: 2, y: Math.max(10, goalY - 4), 'font-size': '9', fill: 'var(--color-accent-700)' });
+      label.textContent = `目標 ${profile.targetWeight.toFixed(1)}`;
+      svg.appendChild(label);
+    }
+
+    const pts = Calc.chartPoints(weights, profile.targetWeight);
+    svg.appendChild(svgEl('polyline', { fill: 'none', stroke: 'var(--color-ink)', 'stroke-width': '1.5', points: pts.map((p) => p.join(',')).join(' ') }));
+    const last = pts[pts.length - 1];
+    svg.appendChild(svgEl('circle', { cx: last[0], cy: last[1], r: '2.6', fill: 'var(--color-accent)' }));
+
+    const mid = inPeriod[Math.floor(inPeriod.length / 2)];
+    $('t-axis').innerHTML = `<span>${Calc.shortDateLabel(inPeriod[0].date)}</span><span>${Calc.shortDateLabel(mid.date)}</span><span>${Calc.shortDateLabel(inPeriod[inPeriod.length - 1].date)}</span>`;
+
+    const avg = weights.reduce((a, b) => a + b, 0) / weights.length;
+    const delta = weights[weights.length - 1] - weights[0];
+    $('t-avg').textContent = avg.toFixed(1);
+    $('t-min').textContent = Math.min(...weights).toFixed(1);
+    $('t-delta').textContent = signed(delta);
+
+    const spanDays = Math.max(1, Calc.daysBetween(inPeriod[0].date, inPeriod[inPeriod.length - 1].date));
+    const weekRate = delta / (spanDays / 7);
+    const summary = $('t-summary');
+    if (weights.length < 2) {
+      summary.textContent = 'この期間の記録が2件になると、週あたりのペースを計算します。';
+    } else if (profile.targetWeight == null || Math.abs(weekRate) < 0.01) {
+      summary.textContent = `この期間の変化は週あたり ${Math.abs(weekRate).toFixed(2)} kg です。`;
+    } else {
+      const towardGoal = (profile.targetWeight - (current ?? 0)) * weekRate > 0;
+      const weeksLeft = Math.max(1, Math.ceil(Math.abs((profile.targetWeight - current) / weekRate)));
+      summary.textContent = towardGoal
+        ? `この期間の変化は週あたり ${Math.abs(weekRate).toFixed(2)} kg。この調子なら目標体重までおよそ ${weeksLeft} 週です。`
+        : `この期間の変化は週あたり ${Math.abs(weekRate).toFixed(2)} kg で、目標体重とは逆の方向に動いています。`;
+    }
+  } else {
+    $('t-axis').innerHTML = '';
+    $('t-summary').textContent = '';
+  }
+}
+
+function renderSettingsTab(appData) {
+  const { profile } = appData;
+  for (const btn of $('s-theme').querySelectorAll('.seg-opt')) {
+    btn.classList.toggle('active', THEMES[profile.theme] === btn.dataset.theme);
+  }
+  if (document.activeElement !== $('s-height')) $('s-height').value = profile.height ?? '';
+  if (document.activeElement !== $('s-start')) $('s-start').value = profile.startWeight ?? '';
+  if (document.activeElement !== $('s-goal')) $('s-goal').value = profile.targetWeight ?? '';
+  if (document.activeElement !== $('s-age')) $('s-age').value = profile.age ?? '';
+  for (const btn of $('s-sex').querySelectorAll('.seg-opt')) {
+    btn.classList.toggle('active', btn.dataset.sex === profile.sex);
+  }
+
+  const box = $('s-activity');
+  box.innerHTML = '';
+  for (const opt of ACTIVITY_OPTIONS) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.dataset.activity = opt.value;
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:5px 0;background:none;border:0;cursor:pointer;width:100%;text-align:left;font-family:inherit';
+    const selected = profile.activityLevel === opt.value;
+    row.innerHTML = `
+      <span class="dot" style="border-color:${selected ? 'var(--color-accent)' : 'color-mix(in srgb, var(--color-ink) 25%, transparent)'};box-shadow:${selected ? 'inset 0 0 0 4px var(--color-accent)' : 'none'}"></span>
+      <span style="font-size:13.5px">${opt.label}</span>
+      <span class="tnum muted" style="margin-left:auto;font-size:12px">× ${opt.factor}</span>`;
+    box.appendChild(row);
+  }
+
+  const { bmr, tdee, target, macros } = deriveNutrition(appData);
+  const nutritionBox = $('s-nutrition-box');
+  const ready = bmr != null && tdee != null && target != null && macros != null;
+  nutritionBox.hidden = !ready;
+  $('s-nutrition-guide').hidden = ready;
+  if (ready) {
+    const rows = [
+      ['タンパク質', macros.proteinG, 4],
+      ['脂質', macros.fatG, 9],
+      ['炭水化物', macros.carbG, 4],
+    ].map(([label, grams, perG]) => `
+      <tr><td style="font-variant-numeric:normal">${label}</td>
+      <td style="text-align:right">${Math.round(grams)} g</td>
+      <td style="text-align:right">${Math.round(grams * perG)}</td>
+      <td style="text-align:right">${Math.round(grams * perG / target * 100)}%</td></tr>`).join('');
+    nutritionBox.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-2);text-align:center">
+        <div><div class="kick">基礎代謝</div><div class="jp tnum" style="font-size:22px;font-weight:400">${Math.round(bmr)}</div></div>
+        <div style="border-left:1px solid var(--color-divider);border-right:1px solid var(--color-divider)"><div class="kick">維持</div><div class="jp tnum" style="font-size:22px;font-weight:400;color:var(--color-accent-700)">${Math.round(tdee)}</div></div>
+        <div><div class="kick">増量目安</div><div class="jp tnum" style="font-size:22px;font-weight:400">${Math.round(target)}</div></div>
+      </div>
+      <div class="muted" style="font-size:10.5px;text-align:center;margin-top:4px">kcal ／ 日</div>
+      <hr class="hr" style="margin:var(--space-3) 0">
+      <table class="tb">
+        <thead><tr><th>栄養素</th><th style="text-align:right">目安</th><th style="text-align:right">kcal</th><th style="text-align:right">比率</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+}
+
+function presetCard(preset) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.presetId = preset.id;
+  card.style.cssText += ';display:flex;flex-direction:column;gap:6px';
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <div class="jp" style="font-size:16px;font-weight:500">${preset.name}</div>
+      <div class="jp tnum" style="font-size:17px;font-weight:400">${preset.calories} <span style="font-size:11px">kcal</span></div>
+    </div>
+    <div class="tnum muted" style="font-size:11.5px;letter-spacing:.02em">P ${preset.proteinG} ／ F ${preset.fatG} ／ C ${preset.carbG}</div>`;
+  return card;
+}
+
+function renderPresets(appData) {
+  const { presets } = appData;
+
+  const pickBox = $('mf-presets');
+  pickBox.innerHTML = '';
+  $('mf-presets-empty').hidden = presets.length > 0;
+  for (const preset of presets) {
+    const card = presetCard(preset);
+    card.dataset.action = 'fill-preset';
+    pickBox.appendChild(card);
+  }
+
+  const setsBox = $('sets-list');
+  setsBox.innerHTML = '';
+  $('sets-empty').hidden = presets.length > 0;
+  for (const preset of presets) {
+    const card = presetCard(preset);
+    card.dataset.action = 'use-preset';
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;gap:14px;margin-top:2px';
+    for (const [action, label] of [['edit-preset', '編集'], ['delete-preset', '削除']]) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.action = action;
+      btn.dataset.presetId = preset.id;
+      btn.style.cssText = 'background:none;border:0;cursor:pointer;font-family:inherit;font-size:11.5px;color:var(--color-accent-700);padding:0';
+      btn.textContent = label;
+      actions.appendChild(btn);
+    }
+    card.appendChild(actions);
+    setsBox.appendChild(card);
+  }
+}
+
+const Render = {
+  all(appData, ui) {
+    $('app').className = THEMES[appData.profile.theme] ?? THEMES.hakuji;
+    $('meta-theme-color').content = THEME_COLORS[appData.profile.theme] ?? THEME_COLORS.hakuji;
+    for (const panel of document.querySelectorAll('.tab-panel')) {
+      panel.hidden = panel.id !== `tab-${ui.tab}`;
+    }
+    for (const btn of document.querySelectorAll('.tab')) {
+      const active = btn.dataset.tab === ui.tab;
+      btn.style.color = active ? 'var(--color-ink)' : 'color-mix(in srgb, var(--color-ink) 50%, transparent)';
+      btn.querySelector('.rule').style.background = active ? 'var(--color-accent)' : 'transparent';
+    }
+    for (const sheet of document.querySelectorAll('.sheet')) {
+      sheet.hidden = sheet.id !== `sheet-${ui.sheet}`;
+    }
+    renderWeightTab(appData);
+    renderMealTab(appData, ui);
+    renderTrendTab(appData, ui);
+    renderSettingsTab(appData);
+    renderPresets(appData);
+  },
+};
+
+// =============================================================
+// Layer 7: App（状態管理とイベント接着）
+// =============================================================
+let appData = Storage.load();
+const ui = { tab: 'weight', sheet: null, period: 30, openDay: null, editingPresetId: null };
+
+function render() { Render.all(appData, ui); }
+function persist() { Storage.save(appData); render(); }
+
+function openSheet(name) {
+  ui.sheet = name;
+  render();
+}
+
+function closeSheet() {
+  ui.sheet = null;
+  ui.editingPresetId = null;
+  render();
+}
+
+function openWeightSheet() {
+  const today = Calc.localDateString();
+  const existing = Service.findRecordByDate(appData.records, today);
+  const latest = latestRecord(appData.records);
+  $('wf-date').value = today;
+  $('wf-date-label').textContent = Calc.longDateLabel(today);
+  $('wf-weight').value = existing ? existing.weight.toFixed(1) : (latest ? latest.weight.toFixed(1) : '');
+  $('wf-fat').value = existing && existing.bodyFatPercent != null ? existing.bodyFatPercent : '';
+  $('wf-latest').textContent = latest ? latest.weight.toFixed(1) : '--';
+  $('sheet-weight-title').textContent = existing ? '記録を上書き' : '記録を追加';
+  showError($('wf-error'), '');
+  openSheet('weight');
+}
+
+function openWeightSheetFor(id) {
+  const record = appData.records.find((r) => r.id === id);
+  if (!record) return;
+  $('wf-date').value = record.date;
+  $('wf-date-label').textContent = Calc.longDateLabel(record.date);
+  $('wf-weight').value = record.weight.toFixed(1);
+  $('wf-fat').value = record.bodyFatPercent ?? '';
+  $('wf-latest').textContent = record.weight.toFixed(1);
+  $('sheet-weight-title').textContent = '記録を編集';
+  showError($('wf-error'), '');
+  openSheet('weight');
+}
+
+async function saveWeight() {
+  const parsed = parseRecordForm({
+    date: $('wf-date').value,
+    weight: $('wf-weight').value,
+    bodyFatPercent: $('wf-fat').value,
+  });
+  if (!parsed.ok) { showError($('wf-error'), parsed.error); return; }
+
+  appData = Service.upsertRecord(appData, parsed.value);
+  ui.sheet = null;
+  ui.tab = 'weight';
+  persist();
+}
+
+function openMealSheet() {
+  $('mf-kcal').value = '';
+  $('mf-p').value = '';
+  $('mf-f').value = '';
+  $('mf-c').value = '';
+  mealDraftName = null;
+  showError($('mf-error'), '');
+  openSheet('meal');
+}
+
+let mealDraftName = null;
+
+function fillMealFromPreset(preset) {
+  $('mf-kcal').value = preset.calories;
+  $('mf-p').value = preset.proteinG;
+  $('mf-f').value = preset.fatG;
+  $('mf-c').value = preset.carbG;
+  mealDraftName = preset.name;
+  showError($('mf-error'), '');
+  openSheet('meal');
+}
+
+function saveMeal() {
+  const parsed = parseIntakeForm({
+    date: Calc.localDateString(),
+    name: mealDraftName,
+    calories: $('mf-kcal').value,
+    proteinG: $('mf-p').value,
+    fatG: $('mf-f').value,
+    carbG: $('mf-c').value,
+  });
+  if (!parsed.ok) { showError($('mf-error'), parsed.error); return; }
+  appData = Service.addIntakeRecord(appData, parsed.value);
+  mealDraftName = null;
+  ui.sheet = null;
+  ui.tab = 'meal';
+  persist();
+}
+
+function openPresetSheet(preset) {
+  ui.editingPresetId = preset ? preset.id : null;
+  $('preset-title').textContent = preset ? '料理セットを編集' : '料理セットを追加';
+  $('preset-name').value = preset ? preset.name : '';
+  $('preset-kcal').value = preset ? preset.calories : '';
+  $('preset-p').value = preset ? preset.proteinG : '';
+  $('preset-f').value = preset ? preset.fatG : '';
+  $('preset-c').value = preset ? preset.carbG : '';
+  $('preset-delete').hidden = !preset;
+  showError($('preset-error'), '');
+  openSheet('preset');
+}
+
+function savePreset() {
+  const parsed = parsePresetForm({
+    id: ui.editingPresetId,
+    name: $('preset-name').value,
+    calories: $('preset-kcal').value,
+    proteinG: $('preset-p').value,
+    fatG: $('preset-f').value,
+    carbG: $('preset-c').value,
+  });
+  if (!parsed.ok) { showError($('preset-error'), parsed.error); return; }
+  appData = Service.upsertPreset(appData, parsed.value);
+  ui.editingPresetId = null;
+  ui.sheet = 'sets';
+  persist();
+}
+
+async function deleteCurrentPreset() {
+  if (!ui.editingPresetId) return;
+  const ok = await showConfirm('この料理セットを削除しますか？');
+  if (!ok) return;
+  appData = Service.deletePreset(appData, ui.editingPresetId);
+  ui.editingPresetId = null;
+  ui.sheet = 'sets';
+  persist();
+}
+
+function commitGoalFields() {
+  const num = (id) => ($(id).value === '' ? null : Number($(id).value));
+  const result = Service.setGoal(appData, {
+    height: num('s-height'),
+    startWeight: num('s-start'),
+    targetWeight: num('s-goal'),
+  });
+  if (!result.ok) { showError($('s-goal-error'), result.error); return; }
+  showError($('s-goal-error'), '');
+  appData = result.value;
+  persist();
+}
+
+function commitAge() {
+  const raw = $('s-age').value;
+  if (raw === '') {
+    appData = Service.setNutritionProfile(appData, { age: null });
+    persist();
+    return;
+  }
+  const n = Number(raw);
+  if (isNaN(n) || n < 10 || n > 120) { showAlert('年齢は10〜120の範囲で入力してください'); return; }
+  appData = Service.setNutritionProfile(appData, { age: Math.round(n) });
+  persist();
+}
+
+async function handleImportFile(file) {
+  try {
+    const parsed = await Storage.readFile(file);
+    const ok = await showConfirm('現在のデータを上書きします。よろしいですか？');
+    if (!ok) return;
+    appData = parsed;
+    persist();
+  } catch (err) {
+    await showAlert(err.message);
+  } finally {
+    $('s-import').value = '';
+  }
+}
+
+function init() {
+  for (const btn of document.querySelectorAll('.tab')) {
+    btn.addEventListener('click', () => { ui.tab = btn.dataset.tab; ui.sheet = null; render(); });
+  }
+  for (const btn of document.querySelectorAll('[data-close-sheet]')) {
+    btn.addEventListener('click', closeSheet);
+  }
+
+  $('w-open-add').addEventListener('click', openWeightSheet);
+  $('wf-save').addEventListener('click', saveWeight);
+  $('wf-date').addEventListener('change', () => { $('wf-date-label').textContent = Calc.longDateLabel($('wf-date').value); });
+  $('w-history').addEventListener('click', (e) => {
+    const row = e.target.closest('[data-record-id]');
+    if (row) openWeightSheetFor(row.dataset.recordId);
+  });
+
+  $('m-open-add').addEventListener('click', openMealSheet);
+  $('m-open-sets').addEventListener('click', () => openSheet('sets'));
+  $('mf-save').addEventListener('click', saveMeal);
+  $('m-days').addEventListener('click', async (e) => {
+    const toggle = e.target.closest('[data-toggle-day]');
+    if (toggle) {
+      ui.openDay = ui.openDay === toggle.dataset.toggleDay ? null : toggle.dataset.toggleDay;
+      render();
+      return;
+    }
+    const del = e.target.closest('[data-delete-day]');
+    if (del) {
+      const date = del.dataset.deleteDay;
+      const ok = await showConfirm(`${date} の食事記録をすべて削除しますか？`);
+      if (!ok) return;
+      appData = Service.deleteIntakeDate(appData, date);
+      if (ui.openDay === date) ui.openDay = null;
+      persist();
+    }
+  });
+
+  $('mf-presets').addEventListener('click', (e) => {
+    const card = e.target.closest('[data-preset-id]');
+    if (!card) return;
+    const preset = appData.presets.find((p) => p.id === card.dataset.presetId);
+    if (preset) fillMealFromPreset(preset);
+  });
+
+  $('sets-add').addEventListener('click', () => openPresetSheet(null));
+  $('sets-list').addEventListener('click', (e) => {
+    const actionEl = e.target.closest('[data-action]');
+    if (!actionEl) return;
+    const preset = appData.presets.find((p) => p.id === actionEl.dataset.presetId);
+    if (!preset) return;
+    if (actionEl.dataset.action === 'edit-preset') openPresetSheet(preset);
+    else if (actionEl.dataset.action === 'delete-preset') {
+      ui.editingPresetId = preset.id;
+      deleteCurrentPreset();
+    } else if (actionEl.dataset.action === 'use-preset') fillMealFromPreset(preset);
+  });
+  $('preset-save').addEventListener('click', savePreset);
+  $('preset-delete').addEventListener('click', deleteCurrentPreset);
+
+  $('t-period').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-period]');
+    if (!btn) return;
+    ui.period = Number(btn.dataset.period);
+    render();
+  });
+
+  $('s-theme').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-theme]');
+    if (!btn) return;
+    const key = Object.keys(THEMES).find((k) => THEMES[k] === btn.dataset.theme);
+    appData = Service.setTheme(appData, key);
+    persist();
+  });
+  for (const id of ['s-height', 's-start', 's-goal']) {
+    $(id).addEventListener('change', commitGoalFields);
+  }
+  $('s-age').addEventListener('change', commitAge);
+  $('s-sex').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-sex]');
+    if (!btn) return;
+    const next = appData.profile.sex === btn.dataset.sex ? null : btn.dataset.sex;
+    appData = Service.setNutritionProfile(appData, { sex: next });
+    persist();
+  });
+  $('s-activity').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-activity]');
+    if (!btn) return;
+    const next = appData.profile.activityLevel === btn.dataset.activity ? null : btn.dataset.activity;
+    appData = Service.setNutritionProfile(appData, { activityLevel: next });
+    persist();
+  });
+
+  $('s-export').addEventListener('click', () => Storage.downloadFile(appData));
+  $('s-import').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleImportFile(file);
+  });
+
+  render();
+}
+
+init();
+
+// PWAとしてホーム画面に入れるための登録。https（またはlocalhost）でのみ動く
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# 個人の記録データ（体重・食事）は公開しない
+weight-data-*.json
+
+# v2で未使用（グラフは自前SVGに変更した）
+chart.min.js
