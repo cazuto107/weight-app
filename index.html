@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" class="theme-hakuji">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -112,7 +112,7 @@ a { color: var(--color-accent-700); }
 </head>
 <body>
 <div id="shell">
-<div id="app" class="theme-hakuji">
+<div id="app">
 
   <div style="flex:1;overflow:hidden;position:relative">
 
@@ -1288,7 +1288,8 @@ function renderPresets(appData) {
 
 const Render = {
   all(appData, ui) {
-    $('app').className = THEMES[appData.profile.theme] ?? THEMES.hakuji;
+    // テーマ変数は #app の外（確認モーダル・body の余白）でも使うため html 要素に付ける
+    document.documentElement.className = THEMES[appData.profile.theme] ?? THEMES.hakuji;
     $('meta-theme-color').content = THEME_COLORS[appData.profile.theme] ?? THEME_COLORS.hakuji;
     for (const panel of document.querySelectorAll('.tab-panel')) {
       panel.hidden = panel.id !== `tab-${ui.tab}`;
