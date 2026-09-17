@@ -14,29 +14,61 @@
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300..700;1,300..600&family=Lora:ital,wght@0,400..600&family=Noto+Serif+JP:wght@300;400;500;600&family=Zen+Old+Mincho:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@300;400;500&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<script>
+// 使うのはテーマごとに2書体だけ。6書体すべてを読み込むと外部への要求が増え、
+// 起動時に画面が出るまで待たされるため、選ばれているテーマの分だけを後追いで読む
+window.THEME_FONTS = {
+  hakuji: 'https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;500&family=Noto+Serif+JP:wght@300;400;500&display=swap',
+  koten: 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Lora:wght@400;500&display=swap',
+  keiki: 'https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500&family=Noto+Sans+JP:wght@300;400;500&display=swap',
+};
+window.loadThemeFont = function (theme) {
+  var url = window.THEME_FONTS[theme];
+  if (!url || document.querySelector('link[data-font="' + theme + '"]')) return;
+  var link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = url;
+  link.dataset.font = theme;
+  link.media = 'print';  // 読み込み中に表示を止めないための指定。完了後にallへ戻す
+  link.onload = function () { link.media = 'all'; };
+  document.head.appendChild(link);
+};
+(function () {
+  var theme = 'hakuji';
+  try {
+    var saved = JSON.parse(localStorage.getItem('weight_v1') || '{}');
+    if (saved.profile && window.THEME_FONTS[saved.profile.theme]) theme = saved.profile.theme;
+  } catch (e) { /* 保存データが壊れていても既定テーマで起動する */ }
+  // ここで配色を当てておかないと、暗色テーマのときに一瞬明るい画面が見える
+  document.documentElement.className = 'theme-' + theme;
+  window.loadThemeFont(theme);
+})();
+</script>
 <style>
 :root {
   --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px;
   --radius-md: 10px;
+  /* Webフォントが届くまでの代替。端末に入っている書体を使うので待ち時間なしで表示できる */
+  --font-mincho: "Hiragino Mincho ProN","Yu Mincho",YuMincho,"MS PMincho",serif;
+  --font-gothic: "Hiragino Sans","Yu Gothic",YuGothic,"Meiryo",sans-serif;
 }
 .theme-hakuji {
   --color-mat: #efebe3; --color-bg: #faf8f4; --color-surface: #fffefb; --color-plate: #f4f1ea;
   --color-ink: #1c1c1a; --color-accent: #2f4b6e; --color-accent-700: #21374f;
   --color-divider: rgba(28,28,26,.14);
-  --font-heading: "Zen Old Mincho","Noto Serif JP",serif; --font-body: "Noto Serif JP",serif;
+  --font-heading: "Zen Old Mincho","Noto Serif JP",var(--font-mincho); --font-body: "Noto Serif JP",var(--font-mincho);
 }
 .theme-koten {
   --color-mat: #e8e6e1; --color-bg: #f3f2f2; --color-surface: #fbfaf8; --color-plate: #efeee9;
   --color-ink: #201f1d; --color-accent: #b68235; --color-accent-700: #7d5411;
   --color-divider: rgba(32,31,29,.16);
-  --font-heading: "Cormorant Garamond","Noto Serif JP",serif; --font-body: "Lora","Noto Serif JP",serif;
+  --font-heading: "Cormorant Garamond",var(--font-mincho); --font-body: "Lora",var(--font-mincho);
 }
 .theme-keiki {
   --color-mat: #0a0d10; --color-bg: #14191d; --color-surface: #1d242a; --color-plate: #10151a;
   --color-ink: #eceff1; --color-accent: #8fc7b0; --color-accent-700: #b6dccb;
   --color-divider: rgba(236,239,241,.18);
-  --font-heading: "Zen Kaku Gothic New","Noto Sans JP",sans-serif; --font-body: "Noto Sans JP",sans-serif;
+  --font-heading: "Zen Kaku Gothic New","Noto Sans JP",var(--font-gothic); --font-body: "Noto Sans JP",var(--font-gothic);
 }
 * { box-sizing: border-box; }
 /* .sheet などが display を指定するため、hidden属性を確実に効かせる */
@@ -1317,7 +1349,9 @@ function renderPresets(appData) {
 const Render = {
   all(appData, ui) {
     // テーマ変数は #app の外（確認モーダル・body の余白）でも使うため html 要素に付ける
-    document.documentElement.className = THEMES[appData.profile.theme] ?? THEMES.hakuji;
+    const theme = THEMES[appData.profile.theme] ? appData.profile.theme : 'hakuji';
+    document.documentElement.className = THEMES[theme];
+    window.loadThemeFont(theme);
     $('meta-theme-color').content = THEME_COLORS[appData.profile.theme] ?? THEME_COLORS.hakuji;
     for (const panel of document.querySelectorAll('.tab-panel')) {
       panel.hidden = panel.id !== `tab-${ui.tab}`;
