@@ -1,6 +1,6 @@
 // 体重管理アプリのService Worker。
 // index.html を書き換えたら CACHE_VERSION を上げると、次回起動時に新しいものへ入れ替わる。
-const CACHE_VERSION = 'weight-v2-2';
+const CACHE_VERSION = 'weight-v2-3';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const FONT_CACHE = `${CACHE_VERSION}-fonts`;
 

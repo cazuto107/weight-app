@@ -455,7 +455,8 @@ function migrateData(parsed) {
       calories: r.calories, proteinG: r.proteinG ?? null, fatG: r.fatG ?? null, carbG: r.carbG ?? null,
     }));
   }
-  if (!Array.isArray(parsed.presets) || parsed.presets.length === 0) {
+  // 空配列は「全部消した」という利用者の意思。初期セットを入れ直すのはv1データなど項目自体が無い場合だけ
+  if (!Array.isArray(parsed.presets)) {
     parsed.presets = DEFAULT_PRESETS.map((p) => ({ id: generateId(), ...p }));
   }
   parsed.version = 2;
