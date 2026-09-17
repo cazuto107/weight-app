@@ -320,7 +320,12 @@ a { color: var(--color-accent-700); }
       <button type="button" class="btn btn-primary jp" style="font-size:14px" id="mf-save">記す</button>
     </div>
     <div class="sheet-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);align-items:end">
+        <div class="field"><label class="jp">個数</label><input class="input tnum" id="mf-qty" inputmode="decimal" value="1" style="font-size:15px"></div>
+        <div class="tnum muted" id="mf-total" style="font-size:12px;line-height:1.6;padding-bottom:6px;text-align:right"></div>
+      </div>
+      <p class="kick" style="margin-top:8px">栄養素は1つ分の値を入れてください</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-2)">
         <div class="field"><label class="jp">カロリー</label><input class="input tnum" id="mf-kcal" inputmode="decimal" style="font-size:15px"></div>
         <div class="field"><label class="jp">タンパク質 g</label><input class="input tnum" id="mf-p" inputmode="decimal" style="font-size:15px"></div>
         <div class="field"><label class="jp">脂質 g</label><input class="input tnum" id="mf-f" inputmode="decimal" style="font-size:15px"></div>
@@ -393,7 +398,8 @@ a { color: var(--color-accent-700); }
 /**
  * @typedef {{ height:number|null, startWeight:number|null, targetWeight:number|null, age:number|null, sex:'male'|'female'|null, activityLevel:string|null, theme:string }} Profile
  * @typedef {{ id:string, date:string, weight:number, bodyFatPercent:number|null }} WeightRecord
- * @typedef {{ id:string, date:string, name:string|null, calories:number, proteinG:number|null, fatG:number|null, carbG:number|null }} IntakeRecord
+ * カロリー・栄養素は個数を掛けたあとの合計値。quantity は「何個食べたか」を後から見るための控え
+ * @typedef {{ id:string, date:string, name:string|null, quantity:number, calories:number, proteinG:number|null, fatG:number|null, carbG:number|null }} IntakeRecord
  * @typedef {{ id:string, name:string, calories:number, proteinG:number, fatG:number, carbG:number }} Preset
  * @typedef {{ version:number, profile:Profile, records:WeightRecord[], intakeRecords:IntakeRecord[], presets:Preset[] }} AppData
  * @template T
@@ -451,7 +457,7 @@ function migrateData(parsed) {
   parsed.intakeRecords ??= [];
   if (Array.isArray(parsed.intakeRecords)) {
     parsed.intakeRecords = parsed.intakeRecords.map((r) => ({
-      id: r.id, date: r.date, name: r.name ?? r.memo ?? null,
+      id: r.id, date: r.date, name: r.name ?? r.memo ?? null, quantity: r.quantity ?? 1,
       calories: r.calories, proteinG: r.proteinG ?? null, fatG: r.fatG ?? null, carbG: r.carbG ?? null,
     }));
   }
@@ -562,6 +568,7 @@ const Validator = {
   intakeRecord(r) {
     if (!r || typeof r !== 'object') return false;
     if (typeof r.id !== 'string' || typeof r.date !== 'string' || typeof r.calories !== 'number') return false;
+    if (typeof r.quantity !== 'number') return false;
     const numOrNull = (v) => v === null || typeof v === 'number';
     if (!numOrNull(r.proteinG) || !numOrNull(r.fatG) || !numOrNull(r.carbG)) return false;
     return r.name === null || typeof r.name === 'string';
@@ -661,6 +668,21 @@ const Calc = {
    * 指定日の摂取記録を合計する。栄養素は、その日の全品目が未入力のときだけ null にする。
    * 小数の合計はJSの浮動小数点誤差が出るため、返す前に小数第1位へ丸める。
    */
+  /**
+   * 1つ分の栄養素に個数を掛ける。カロリーは整数、グラムは小数第1位に丸める
+   * @param {{calories:number, proteinG:number|null, fatG:number|null, carbG:number|null}} per1
+   * @param {number} quantity
+   */
+  scaleNutrition(per1, quantity) {
+    const g = (v) => (v == null ? null : Math.round(v * quantity * 10) / 10);
+    return {
+      calories: Math.round(per1.calories * quantity),
+      proteinG: g(per1.proteinG),
+      fatG: g(per1.fatG),
+      carbG: g(per1.carbG),
+    };
+  },
+
   sumIntakeForDate(intakeRecords, date) {
     const entries = intakeRecords.filter((r) => r.date === date);
     if (entries.length === 0) return null;
@@ -826,7 +848,10 @@ function parseRecordForm({ date, weight, bodyFatPercent }) {
   return { ok: true, value: { date, weight: Math.round(w * 10) / 10, bodyFatPercent: fat.value } };
 }
 
-function parseIntakeForm({ date, name, calories, proteinG, fatG, carbG }) {
+/** 入力欄の値は「1つ分」。個数を掛けた合計を記録として返す */
+function parseIntakeForm({ date, name, quantity, calories, proteinG, fatG, carbG }) {
+  const qty = Number(quantity);
+  if (quantity === '' || isNaN(qty) || qty <= 0) return { ok: false, error: '個数は0より大きい数値を入力してください' };
   const cal = Number(calories);
   if (calories === '' || isNaN(cal) || cal < 0) return { ok: false, error: '正しいカロリーを入力してください' };
   const p = parseOptionalNumber(proteinG, 'タンパク質');
@@ -835,10 +860,11 @@ function parseIntakeForm({ date, name, calories, proteinG, fatG, carbG }) {
   if (!f.ok) return f;
   const c = parseOptionalNumber(carbG, '炭水化物');
   if (!c.ok) return c;
-  return {
-    ok: true,
-    value: { date, name: name || null, calories: Math.round(cal), proteinG: p.value, fatG: f.value, carbG: c.value },
-  };
+  const total = Calc.scaleNutrition(
+    { calories: cal, proteinG: p.value, fatG: f.value, carbG: c.value },
+    qty,
+  );
+  return { ok: true, value: { date, name: name || null, quantity: qty, ...total } };
 }
 
 function parsePresetForm({ id, name, calories, proteinG, fatG, carbG }) {
@@ -1089,7 +1115,8 @@ function renderMealTab(appData, ui) {
         const tr = document.createElement('tr');
         const label = document.createElement('td');
         label.style.cssText = 'font-variant-numeric:normal;color:color-mix(in srgb, var(--color-ink) 70%, transparent)';
-        label.textContent = item.name || `${i + 1} 食目`;
+        const base = item.name || `${i + 1} 食目`;
+        label.textContent = item.quantity > 1 ? `${base} × ${item.quantity}` : base;
         tr.appendChild(label);
         for (const [v, w] of [[item.calories, 54], [item.proteinG, 40], [item.fatG, 40], [item.carbG, 40]]) {
           const td = document.createElement('td');
@@ -1373,31 +1400,53 @@ async function saveWeight() {
 }
 
 function openMealSheet() {
+  $('mf-qty').value = '1';
   $('mf-kcal').value = '';
   $('mf-p').value = '';
   $('mf-f').value = '';
   $('mf-c').value = '';
   mealDraftName = null;
   showError($('mf-error'), '');
+  renderMealTotal();
   openSheet('meal');
 }
 
 let mealDraftName = null;
 
 function fillMealFromPreset(preset) {
+  $('mf-qty').value = '1';
   $('mf-kcal').value = preset.calories;
   $('mf-p').value = preset.proteinG;
   $('mf-f').value = preset.fatG;
   $('mf-c').value = preset.carbG;
   mealDraftName = preset.name;
   showError($('mf-error'), '');
+  renderMealTotal();
   openSheet('meal');
+}
+
+/** 個数を掛けた合計を入力欄の横に出す。個数が1のときは出さない */
+function renderMealTotal() {
+  const box = $('mf-total');
+  const qty = Number($('mf-qty').value);
+  const cal = Number($('mf-kcal').value);
+  if (!qty || qty <= 0 || isNaN(qty) || $('mf-kcal').value === '' || isNaN(cal) || qty === 1) {
+    box.textContent = '';
+    return;
+  }
+  const num = (id) => ($(id).value === '' ? null : Number($(id).value));
+  const t = Calc.scaleNutrition({ calories: cal, proteinG: num('mf-p'), fatG: num('mf-f'), carbG: num('mf-c') }, qty);
+  const grams = [['P', t.proteinG], ['F', t.fatG], ['C', t.carbG]].filter(([, v]) => v != null);
+  box.textContent = `合計 ${t.calories} kcal`
+    + (grams.length ? `\n${grams.map(([k, v]) => `${k} ${v}`).join(' ／ ')}` : '');
+  box.style.whiteSpace = 'pre-line';
 }
 
 function saveMeal() {
   const parsed = parseIntakeForm({
     date: Calc.localDateString(),
     name: mealDraftName,
+    quantity: $('mf-qty').value,
     calories: $('mf-kcal').value,
     proteinG: $('mf-p').value,
     fatG: $('mf-f').value,
@@ -1509,6 +1558,9 @@ function init() {
   $('m-open-add').addEventListener('click', openMealSheet);
   $('m-open-sets').addEventListener('click', () => openSheet('sets'));
   $('mf-save').addEventListener('click', saveMeal);
+  for (const id of ['mf-qty', 'mf-kcal', 'mf-p', 'mf-f', 'mf-c']) {
+    $(id).addEventListener('input', renderMealTotal);
+  }
   $('m-days').addEventListener('click', async (e) => {
     const toggle = e.target.closest('[data-toggle-day]');
     if (toggle) {
